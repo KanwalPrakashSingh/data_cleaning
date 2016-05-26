@@ -36,11 +36,13 @@ def calculate_stripped_mean_std(obj):
     stripped_mean = []
     stripped_squares = []
     dirty_data = []
+    outliers = []
     ### initialize
     for i in range(0,NO_OF_SERIES):
         stripped_mean.append(0)
         stripped_squares.append(0)
         dirty_data.append(0)
+        outliers.append(0)
     ### only one line is read at a time, by the time next line is read the older one will be discarded
     #print "opening file"
     with open(FILE_NAME) as infile:
@@ -58,8 +60,10 @@ def calculate_stripped_mean_std(obj):
                 if not math.isnan(value):
                     if value > mean[i] + K*std[i]:
                         value = mean[i] + K*std[i]
+                        outliers[i] += 1
                     elif value < mean[i] - K*std[i]:
                         value = mean[i] - K*std[i]
+                        outliers[i] += 1
                     current_count = count - dirty_data[i] - offset #ignore all the NAN counts for a particular column
                     stripped_mean[i] = (stripped_mean[i]* current_count + value) / (current_count + 1)
                     stripped_squares[i] = (stripped_squares[i]* current_count + (value * value)) / (current_count + 1)
@@ -67,7 +71,7 @@ def calculate_stripped_mean_std(obj):
                     dirty_data[i] += 1
             count = count + 1
 
-    return stripped_mean,stripped_squares,count-offset,dirty_data
+    return stripped_mean,stripped_squares,count-offset,dirty_data,outliers
 
 def calculate_mean_std(offset):
     """
@@ -96,7 +100,7 @@ def calculate_mean_std(offset):
 
             row = line.split(" ")
             for m in range(1,len(row)):
-                value = float(row[i])
+                value = float(row[m])
                 i = m - 1
                 if not math.isnan(value):
                     current_count = count - dirty_data[i] - offset #ignore all the NAN counts for a particular column
@@ -178,11 +182,13 @@ def calculate_stripped_mean_std_parallel(mean,std):
     stripped_squares = []
     stripped_std = []
     dirty_data = []
+    outliers = []
     for i in range(0,NO_OF_SERIES):
         stripped_std.append(0)
         stripped_squares.append(0)
         stripped_mean.append(0)
         dirty_data.append(0)
+        outliers.append(0)
     start = time.time()
     offsets = [] #this will be the arguments to all the parallel jobs
     instances = (MAX_ROWS/BATCH_SIZE)
@@ -199,6 +205,7 @@ def calculate_stripped_mean_std_parallel(mean,std):
             stripped_mean[i] += result[0][i]*count
             stripped_squares[i] += result[1][i]*count
             dirty_data[i] += result[3][i]
+            outliers[i] += result[4][i]
         total += result[2]
 
     for i in range(len(mean)):
@@ -214,6 +221,8 @@ def calculate_stripped_mean_std_parallel(mean,std):
     print stripped_std
     print "\n######### NAN ROWS COUNT #########\n"
     print dirty_data
+    print "\n######### OUTLIERS ROWS COUNT #########\n"
+    print outliers
     print "\n######### EXECUTION TIME #########\n"
     print (end-start)
 
@@ -295,7 +304,7 @@ def get_correlation_parallel(s1,s2):
         pearson_corr += result[0]*result[1]
         total += result[1]
     pearson_corr = 1.0*pearson_corr / total
-    t_value = pearson_corr*math.sqrt( 1.0*(total - 2) / ( 1 - (pearson_corr*pearson_corr)))
+    t_value = abs(pearson_corr*math.sqrt( 1.0*(total - 2) / ( 1 - (pearson_corr*pearson_corr))))
     p_value = t.sf(t_value,total-2)
     print "\n ######### CORRELATION BETWEEN SERIES ",s1," AND SERIES ",s2, " is ",pearson_corr , "t value is ", t_value ," and p value is ", p_value,  "######### \n" 
     end = time.time()
@@ -316,7 +325,7 @@ def get_max_min(filename):
         for line in infile:
             row = line.split(" ")
             for m in range(1,len(row)):
-                val = float(row[i])
+                val = float(row[m])
                 i = m - 1 
                 if not math.isnan:
                     if val > series_max[i]:
@@ -343,6 +352,7 @@ def get_probability_distribution_historgram(s1,s2,intervals):
 
 #print get_max_min(FILE_NAME)
 #calculate_mean_std_parallel()
+#print calculate_mean_std(0)
 get_correlation_parallel(2,3)
 
 
