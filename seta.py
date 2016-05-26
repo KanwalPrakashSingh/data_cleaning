@@ -52,8 +52,9 @@ def calculate_stripped_mean_std(obj):
                 continue
 
             row = line.split(" ")
-            for i in range(len(row)-1):
-                value = float(row[i])
+            for m in range(1,len(row)):
+                value = float(row[m])
+                i = m -1 # ignoring the first index as its just a serial no 
                 if not math.isnan(value):
                     if value > mean[i] + K*std[i]:
                         value = mean[i] + K*std[i]
@@ -94,8 +95,9 @@ def calculate_mean_std(offset):
                 continue
 
             row = line.split(" ")
-            for i in range(len(row)-1):
+            for m in range(1,len(row)):
                 value = float(row[i])
+                i = m - 1
                 if not math.isnan(value):
                     current_count = count - dirty_data[i] - offset #ignore all the NAN counts for a particular column
                     mean[i] = (mean[i]* current_count + value) / (current_count + 1)
@@ -232,6 +234,8 @@ def get_correlation(obj):
     s1,s2,mean,std,stripped_mean,stripped_std,offset = obj
     pearson_corr = 0
     count = 0
+    series_index_1 = s1-1
+    series_index_2 = s2-1
     with open(FILE_NAME) as infile:
         for line in infile:
             if count - offset == BATCH_SIZE:
@@ -240,38 +244,38 @@ def get_correlation(obj):
                 count = count + 1
                 continue
             row = line.split(" ")
-            val1 = float(row[s1])
+            val1 = float(row[s1]) # the index here starts from 1 as index 0 is just count
             val2 = float(row[s2])
             if math.isnan(val1) or math.isnan(val2): #skip if any one of the two values has missing / nan values
                 continue
             
-            ### outlier removal
-            if val1 > mean[s1] + (K*std[s1]):
-                val1 = mean[s1] + (K*std[s1])
-            elif val1 < mean[s1] - (K*std[s1]):
-                val1 = mean[s1] - (K*std[s1])
+            ### outlier removal , note that index starts from 0 
+            if val1 > mean[series_index_1] + (K*std[series_index_1]):
+                val1 = mean[series_index_1] + (K*std[series_index_1])
+            elif val1 < mean[series_index_1] - (K*std[series_index_1]):
+                val1 = mean[series_index_1] - (K*std[series_index_1])
 
-            if val2 > mean[s2] + (K*std[s2]):
-                val2 = mean[s2] + (K*std[s2])
-            elif val2 < mean[s2] - (K*std[s2]):
-                val2 = mean[s2] - (K*std[s2])
+            if val2 > mean[series_index_2] + (K*std[series_index_2]):
+                val2 = mean[series_index_2] + (K*std[series_index_2])
+            elif val2 < mean[series_index_2] - (K*std[series_index_2]):
+                val2 = mean[series_index_2] - (K*std[series_index_2])
 
             current_count = count - offset 
-            pearson_corr = 1.0 * ( pearson_corr*current_count + ((val1 - stripped_mean[s1])*(val2 - stripped_mean[s2]))) / (current_count+1)
+            pearson_corr = 1.0 * ( pearson_corr*current_count + ((val1 - stripped_mean[series_index_1])*(val2 - stripped_mean[series_index_2]))) / (current_count+1)
             count = count + 1
     if PRINT:
         print "stripped std ",s1,s2
-        print stripped_std[s1],stripped_std[s2]
+        print stripped_std[series_index_1],stripped_std[series_index_2]
         print " std ",s1,s2
-        print std[s1],std[s2]
-    pearson_corr = pearson_corr*1.0 / (stripped_std[s1]*stripped_std[s2])
+        print std[series_index_1],std[series_index_2]
+    pearson_corr = pearson_corr*1.0 / (stripped_std[series_index_1]*stripped_std[series_index_2])
     return pearson_corr,count-offset
 
 def get_correlation_parallel(s1,s2):
     """
     params s1 - series 1
     params s2 - series 2 
-    NOTE : series are number 0 to 24 when giving in arguments
+    NOTE : series are number 1 to 25 when giving in arguments
     returns the correlation between series
     """
     start = time.time()
@@ -293,7 +297,7 @@ def get_correlation_parallel(s1,s2):
     pearson_corr = 1.0*pearson_corr / total
     t_value = pearson_corr*math.sqrt( 1.0*(total - 2) / ( 1 - (pearson_corr*pearson_corr)))
     p_value = t.sf(t_value,total-2)
-    print "\n ######### CORRELATION BETWEEN SERIES ",s1+1," AND SERIES ",s2+1, " is ",pearson_corr , "t value is ", t_value ," and p value is ", p_value,  "######### \n" 
+    print "\n ######### CORRELATION BETWEEN SERIES ",s1," AND SERIES ",s2, " is ",pearson_corr , "t value is ", t_value ," and p value is ", p_value,  "######### \n" 
     end = time.time()
     print "EXECUTION TIME : ", end-start , " sec"
     return pearson_corr
@@ -304,15 +308,16 @@ def get_max_min(filename):
     """
     series_max = []
     series_min = []
-    for i in range(0,NO_OF_SERIES):
+    for i in range(1,NO_OF_SERIES):
         series_min.append(0)
         series_max.append(0)
     ### only one line is read at a time, by the time next line is read the older one will be discarded
     with open(filename) as infile:
         for line in infile:
             row = line.split(" ")
-            for i in range(len(row) - 1):
+            for m in range(1,len(row)):
                 val = float(row[i])
+                i = m - 1 
                 if not math.isnan:
                     if val > series_max[i]:
                         series_max[i] = val
@@ -338,7 +343,7 @@ def get_probability_distribution_historgram(s1,s2,intervals):
 
 #print get_max_min(FILE_NAME)
 #calculate_mean_std_parallel()
-get_correlation_parallel(1,2) # series 1 is series 2 , index starts from 0 
+get_correlation_parallel(2,3)
 
 
 
